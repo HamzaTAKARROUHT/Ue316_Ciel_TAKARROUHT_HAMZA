@@ -1,0 +1,89 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Forum - Liste des sujets{% endblock %}
+
+{% block body %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Liste des sujets</h1>
+        {% if is_granted('ROLE_USER') %}
+            <a href="{{ path('app_topic_new') }}" class="btn btn-primary">Nouveau sujet</a>
+        {% endif %}
+    </div>
+
+    {% for topic in topics %}
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="card-title">
+                        <a href="{{ path('app_topic_show', {'id': topic.id}) }}">
+                            {{ topic.title }}
+                        </a>
+                    </h5>
+                    <span class="badge bg-secondary">{{ topic.comments|length }} réponses</span>
+                </div>
+                <p class="card-text text-muted">
+                    Par {{ topic.author.email }} le {{ topic.createdAt|date('d/m/Y H:i') }}
+                </p>
+                <p class="card-text">{{ topic.content|slice(0, 200) }}...</p>
+                
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="me-2">{{ topic.likes }} likes</span>
+                        {% if is_granted('ROLE_USER') and app.user != topic.author %}
+                            <button class="btn btn-sm btn-outline-primary like-button" 
+                                    data-topic-id="{{ topic.id }}">
+                                Like
+                            </button>
+                        {% endif %}
+                    </div>
+                    
+                    {% if is_granted('ROLE_ADMIN') or app.user == topic.author %}
+                        <div>
+                            <a href="{{ path('app_topic_edit', {'id': topic.id}) }}" 
+                               class="btn btn-sm btn-outline-secondary">Modifier</a>
+                            
+                            {% if topic.comments is empty %}
+                                <form action="{{ path('app_topic_delete', {'id': topic.id}) }}" 
+                                      method="post" style="display: inline-block">
+                                    <input type="hidden" name="_token" 
+                                           value="{{ csrf_token('delete' ~ topic.id) }}">
+                                    <button class="btn btn-sm btn-outline-danger" 
+                                            onclick="return confirm('Êtes-vous sûr de vouloir supprimer ce sujet ?')">
+                                        Supprimer
+                                    </button>
+                                </form>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="alert alert-info">Aucun sujet n'a été créé pour le moment.</div>
+    {% endfor %}
+</div>
+
+{% block javascripts %}
+<script>
+document.querySelectorAll('.like-button').forEach(button => {
+    button.addEventListener('click', function() {
+        const topicId = this.dataset.topicId;
+        fetch(`/topic/${topicId}/like`, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.likes) {
+                const likesSpan = this.parentElement.querySelector('span');
+                likesSpan.textContent = `${data.likes} likes`;
+            }
+        });
+    });
+});
+</script>
+{% endblock %}
+{% endblock %}
